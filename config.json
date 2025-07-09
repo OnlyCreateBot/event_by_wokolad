@@ -2,10 +2,11 @@
   "build": {
     "env": {
       "BOT_TOKEN": "$BOT_TOKEN",
-      "ADMIN_ID": "$ADMIN_ID"
+      "ADMIN_ID": "$ADMIN_ID",
+      "PORT": "8080"
     }
   },
   "deploy": {
-    "start": "python main.py"
+    "start": "gunicorn main:app"
   }
 }
