@@ -41,7 +41,7 @@ def cmd_start(message):
     is_admin = uid in organizers
     role = "Вы организатор игры. Вам доступны все команды." if is_admin else "Вы игрок."
     bot.send_message(uid, f"Здравствуйте, {name}!
-{role}")
+    /n{role}")
 
 @bot.message_handler(commands=["help"])
 def cmd_help(message):
@@ -67,7 +67,7 @@ def cmd_info(message):
 
 @bot.message_handler(commands=["contact"])
 def cmd_contact(message):
-    bot.send_message(message.chat.id, "📩 Связь с организатором: https://t.me/LivegramBot?start=wokolad")
+    bot.send_message(message.chat.id, "📩 Связь с организатором: https://t.me/feedback_for_event_bot")
 
 @bot.message_handler(commands=["event"])
 def cmd_event(message):
