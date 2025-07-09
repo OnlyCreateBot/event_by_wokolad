@@ -4,8 +4,8 @@ import telebot
 from datetime import datetime
 from flask import Flask, request
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID", "123456"))  # по умолчанию 123456
+BOT_TOKEN = os.environ.get("7976353061:AAGSwksP7Q1o-utMNZczyibZKLEua2Toh1w")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "6702974375"))  # по умолчанию 123456
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
