@@ -1,225 +1,114 @@
-import os
-import json
-from datetime import datetime
-from flask import Flask, request
-import telebot
+import os import json from datetime import datetime from flask import Flask, request import telebot from telebot import types
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID", "123456"))
+ENV config
 
-bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)
+BOT_TOKEN = os.environ.get("BOT_TOKEN") ADMIN_ID = int(os.environ.get("ADMIN_ID", "123456")) BACKUP_PASSWORD = "wokolad"
 
-USERS_FILE = "users.json"
-TIMER_FILE = "timer.json"
-ORGANIZERS_FILE = "organizers.json"
+bot = telebot.TeleBot(BOT_TOKEN) app = Flask(name)
 
-FOOTER = "\n\n🎮 Конкурс проходит на Minecraft PE сервере\nIP: play.24mine.ru\nПорт: 19133\nОрганизатор: @wokolad"
+Files
 
-def load_json(filename, default):
-    if os.path.exists(filename):
-        with open(filename) as f:
-            return json.load(f)
-    return default
+USERS_FILE = "users.json" TIMER_FILE = "timer.json" ORGANIZERS_FILE = "organizers.json"
 
-def save_json(filename, data):
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=2)
+Storage
 
-users = load_json(USERS_FILE, {})
-organizers = load_json(ORGANIZERS_FILE, [ADMIN_ID])
-timer_data = load_json(TIMER_FILE, {"timestamp": None})
+user_states = {} users = {} organizers = [ADMIN_ID] timer_data = {"timestamp": None}
 
-user_states = {}
+Utils
 
-@bot.message_handler(commands=["start"])
-def cmd_start(message):
-    uid = message.from_user.id
-    name = message.from_user.first_name or "Игрок"
-    role = "Вы организатор. Вам доступны админ-команды." if uid in organizers else "Вы игрок."
-    welcome = (
-        f"👋 Здравствуйте, {name}!\n"
-        f"{role}\n\n"
-        "🔸 Этот бот поможет зарегистрироваться на конкурс по Minecraft.\n"
-        "ℹ️ Напишите /help, чтобы увидеть список команд."
-        + FOOTER
-    )
-    bot.send_message(uid, welcome)
+def load_json(filename, default): if os.path.exists(filename): with open(filename) as f: return json.load(f) return default
 
-@bot.message_handler(commands=["help"])
-def cmd_help(message):
-    uid = message.from_user.id
-    is_admin = uid in organizers
-    text = "📖 Доступные команды:\n"
-    text += "/start — начать заново\n"
-    text += "/help — список команд\n"
-    text += "/info — информация о конкурсе\n"
-    text += "/event — регистрация\n"
-    text += "/edit — изменить анкету\n"
-    text += "/delete — удалить анкету\n"
-    text += "/contact — связь с организатором\n"
-    if is_admin:
-        text += "\n🛠 Админ-команды:\n"
-        text += "/admin — список админ-команд\n"
-        text += "/settimer — установить дату/время\n"
-        text += "/participants — участники\n"
-        text += "/promote ID — выдать права организатора\n"
-        text += "/notify — уведомить всех заинтересованных"
-    bot.send_message(message.chat.id, text + FOOTER)
+def save_json(filename, data): with open(filename, "w") as f: json.dump(data, f, indent=2)
 
-@bot.message_handler(commands=["info"])
-def cmd_info(message):
-    if timer_data["timestamp"]:
-        event_time = datetime.fromtimestamp(timer_data["timestamp"])
-        now = datetime.now()
-        delta = event_time - now
-        if delta.total_seconds() > 0:
-            h = delta.seconds // 3600
-            m = (delta.seconds % 3600) // 60
-            t = f"📅 Начало игры: {event_time.strftime('%Y-%m-%d %H:%M')} ({event_time.strftime('%A')})\n⏳ До начала: {delta.days} дн {h} ч {m} мин"
-        else:
-            t = "🎉 Конкурс уже начался!"
+users = load_json(USERS_FILE, {}) organizers = load_json(ORGANIZERS_FILE, [ADMIN_ID]) timer_data = load_json(TIMER_FILE, {"timestamp": None})
+
+Footer info
+
+FOOTER = "\n\n✨ Конкурс проводится на Minecraft сервере 24Mine\n🌐 IP: play.24mine.ru | 📱 Порт: 19133\n🔹 Версия: 0.14.x\n🥇 Главный приз: Донат-кейс\n👨‍🎓 Организатор: @wokolad"
+
+Command /start
+
+@bot.message_handler(commands=["start"]) def start_cmd(message): uid = message.from_user.id name = message.from_user.first_name or "Игрок" is_admin = uid in organizers text = f"✋ Привет, {name}!
+
+🎓 Это бот для регистрации на конкурс Minecraft 0.14.x от @wokolad.
+
+🌟 Ты можешь: • 🔢 /event — заполнить анкету для участия • 📜 /info — информация о конкурсе • 📢 /contact — связаться с организатором • 🔧 /help — список всех команд" if is_admin: text += "\n• 🛠️ /admin — админ-команды" bot.send_message(uid, text + FOOTER)
+
+@bot.message_handler(commands=["help"]) def help_cmd(message): text = "❓ Все команды: /start — приветствие и инфо /info — информация о конкурсе /event — заполнить анкету /contact — связаться с организатором" if message.from_user.id in organizers: text += "\n\n🛠️ Админ-команды: /settimer — назначить/сбросить время /notify [всем/да/нет] текст — рассылка /promote ID — выдать админку /participants — участники /backup пароль — выгрузка базы" bot.send_message(message.chat.id, text + FOOTER)
+
+@bot.message_handler(commands=["contact"]) def contact_cmd(message): bot.send_message(message.chat.id, "📢 Связь с организатором: https://t.me/feedback_for_event_bot" + FOOTER)
+
+@bot.message_handler(commands=["info"]) def info_cmd(message): if timer_data["timestamp"]: dt = datetime.fromtimestamp(timer_data["timestamp"]) now = datetime.now() delta = dt - now time_text = f"🌇 Начало игры запланировано на {dt.strftime('%Y-%m-%d %H:%M')} ({dt.strftime('%A')})\n⏳ До начала: {delta.days} дн {delta.seconds // 3600} ч {(delta.seconds % 3600) // 60} мин" else: time_text = "⏰ Начало игры ещё не запланировано!" bot.send_message(message.chat.id, f"🎮 Конкурс от @wokolad\n{time_text}\n🎁 Главный приз: Донат-кейс" + FOOTER)
+
+@bot.message_handler(commands=["event"]) def event_cmd(message): user_states[message.chat.id] = {"step": 1, "answers": {}} bot.send_message(message.chat.id, "👤 Какой у вас игровой ник на сервере 24mine? (до 25 символов)")
+
+@bot.message_handler(commands=["admin"]) def admin_cmd(message): if message.from_user.id in organizers: text = "⚖️ Админ-панель: /settimer /notify [всем/да/нет] текст /promote ID /participants /backup пароль" bot.send_message(message.chat.id, text)
+
+@bot.message_handler(commands=["settimer"]) def settimer_cmd(message): if message.from_user.id in organizers: bot.send_message(message.chat.id, "🕒 Введите дату и время (ГГГГ-ММ-ДД ЧЧ:ММ) или 'сброс' для отмены") user_states[message.chat.id] = {"admin_timer": True}
+
+@bot.message_handler(commands=["promote"]) def promote_cmd(message): if message.from_user.id in organizers: parts = message.text.split() if len(parts) == 2 and parts[1].isdigit(): new_admin = int(parts[1]) if new_admin not in organizers: organizers.append(new_admin) save_json(ORGANIZERS_FILE, organizers) bot.send_message(message.chat.id, f"✅ {new_admin} теперь организатор.")
+
+@bot.message_handler(commands=["participants"]) def participants_cmd(message): if message.from_user.id in organizers: if not users: bot.send_message(message.chat.id, "😟 Участников нет.") return msg = "📄 Участники:\n" for uid, data in users.items(): msg += f"\n👤 @{data.get('username', '-')[:25]} (ID: {uid})" for k, v in data['answers'].items(): msg += f"\n• {k}: {v}" msg += "\n" bot.send_message(message.chat.id, msg)
+
+@bot.message_handler(commands=["backup"]) def backup_cmd(message): if message.from_user.id in organizers: parts = message.text.split() if len(parts) == 2 and parts[1] == BACKUP_PASSWORD: with open(USERS_FILE) as f: content = f.read() bot.send_document(message.chat.id, ("users.json", content)) else: bot.send_message(message.chat.id, "❌ Неверный пароль")
+
+@bot.message_handler(commands=["notify"]) def notify_cmd(message): if message.from_user.id in organizers: parts = message.text.split(" ", 2) if len(parts) < 3: return bot.send_message(message.chat.id, "❓ Пример: /notify да Привет") target, text = parts[1], parts[2] for uid, data in users.items(): answer = data["answers"].get("Будет участвовать", "").lower() if (target == "да" and "да" in answer) or (target == "нет" and "нет" in answer) or target == "всем": try: bot.send_message(int(uid), text + FOOTER) except: pass
+
+Input handler
+
+@bot.message_handler(func=lambda msg: msg.chat.id in user_states) def handle_state(msg): state = user_states[msg.chat.id]
+
+if "admin_timer" in state:
+    if msg.text.lower() == "сброс":
+        timer_data["timestamp"] = None
+        save_json(TIMER_FILE, timer_data)
+        bot.send_message(msg.chat.id, "✅ Таймер сброшен")
     else:
-        t = "⏳ Начало игры ещё не запланировано!"
-    bot.send_message(message.chat.id, f"🎮 Конкурс от wokolad\n🌐 Сервер: play.24mine.ru\n📱 Порт: 19133\n🧩 Версия: 0.14.x\n🎁 Приз: донат кейс\n{t}" + FOOTER)
-
-@bot.message_handler(commands=["contact"])
-def cmd_contact(message):
-    bot.send_message(message.chat.id, "📩 Напишите организатору: https://t.me/feedback_for_event_bot" + FOOTER)
-
-@bot.message_handler(commands=["event"])
-def cmd_event(message):
-    user_states[message.chat.id] = {"step": 1, "answers": {}}
-    bot.send_message(message.chat.id, "📝 Какой у вас игровой никнейм на сервере 24mine?")
-
-@bot.message_handler(commands=["edit"])
-def cmd_edit(message):
-    uid = str(message.from_user.id)
-    if uid in users:
-        user_states[message.chat.id] = {"step": 1, "answers": {}}
-        bot.send_message(message.chat.id, "🔁 Обновим анкету!\nКакой у вас игровой никнейм?")
-    else:
-        bot.send_message(message.chat.id, "❗ Вы ещё не зарегистрированы. Напишите /event")
-
-@bot.message_handler(commands=["delete"])
-def cmd_delete(message):
-    uid = str(message.from_user.id)
-    if uid in users:
-        del users[uid]
-        save_json(USERS_FILE, users)
-        bot.send_message(message.chat.id, "🗑 Ваша анкета удалена.")
-    else:
-        bot.send_message(message.chat.id, "❗ У вас нет анкеты.")
-
-@bot.message_handler(commands=["admin"])
-def cmd_admin(message):
-    if message.from_user.id not in organizers:
-        return
-    text = "🛠 Админ-команды:\n/settimer — установить время\n/participants — список\n/promote ID — дать права\n/notify — уведомить игроков"
-    bot.send_message(message.chat.id, text)
-
-@bot.message_handler(commands=["settimer"])
-def cmd_settimer(message):
-    if message.from_user.id not in organizers:
-        return
-    bot.send_message(message.chat.id, "🕓 Введи дату и время (формат: ГГГГ-ММ-ДД ЧЧ:ММ)")
-    user_states[message.chat.id] = {"admin_timer": True}
-
-@bot.message_handler(commands=["participants"])
-def cmd_participants(message):
-    if message.from_user.id not in organizers:
-        return
-    if not users:
-        bot.send_message(message.chat.id, "😢 Нет участников.")
-        return
-    msg = "🧾 Участники:\n"
-    for uid, data in users.items():
-        msg += f"👤 @{data.get('username', '-')}\n"
-        for k, v in data["answers"].items():
-            msg += f"• {k}: {v}\n"
-        msg += "\n"
-    bot.send_message(message.chat.id, msg)
-
-@bot.message_handler(commands=["promote"])
-def cmd_promote(message):
-    if message.from_user.id not in organizers:
-        return
-    parts = message.text.split()
-    if len(parts) == 2 and parts[1].isdigit():
-        new_admin = int(parts[1])
-        if new_admin not in organizers:
-            organizers.append(new_admin)
-            save_json(ORGANIZERS_FILE, organizers)
-            bot.send_message(message.chat.id, f"✅ {new_admin} теперь организатор.")
-    else:
-        bot.send_message(message.chat.id, "❗ Пример: /promote 123456789")
-
-@bot.message_handler(commands=["notify"])
-def cmd_notify(message):
-    if message.from_user.id not in organizers:
-        return
-    count = 0
-    for uid, data in users.items():
-        ans = data.get("answers", {})
-        interested = any(
-            ans.get(key, "").lower() in ["да", "подумаю", "смотря в какое время, если буду свободен приду"]
-            for key in ["Придёт", "Будет участвовать"]
-        )
-        if interested:
-            try:
-                bot.send_message(int(uid), f"📢 Привет, {ans.get('Игровой ник', '')}! Скоро стартует конкурс от @wokolad! Не пропусти!{FOOTER}")
-                count += 1
-            except:
-                pass
-    bot.send_message(message.chat.id, f"✅ Уведомлено игроков: {count}")
-
-@bot.message_handler(func=lambda m: m.chat.id in user_states)
-def handle_state(msg):
-    state = user_states[msg.chat.id]
-    if "admin_timer" in state:
         try:
             dt = datetime.strptime(msg.text, "%Y-%m-%d %H:%M")
             timer_data["timestamp"] = int(dt.timestamp())
             save_json(TIMER_FILE, timer_data)
-            bot.send_message(msg.chat.id, f"✅ Таймер установлен на: {dt}")
+            bot.send_message(msg.chat.id, f"✅ Таймер установлен на {dt}")
         except:
             bot.send_message(msg.chat.id, "❌ Неверный формат. Пример: 2025-07-10 18:30")
-        user_states.pop(msg.chat.id)
-        return
+    user_states.pop(msg.chat.id)
+    return
 
-    step = state["step"]
-    if step == 1:
-        state["answers"]["Игровой ник"] = msg.text
-        bot.send_message(msg.chat.id, "Вы хотите зарегистрироваться на конкурс? (Да / Нет / Подумаю)")
-        state["step"] = 2
-    elif step == 2:
-        state["answers"]["Придёт"] = msg.text
-        bot.send_message(msg.chat.id, "Вы будете участвовать в конкурсе? (Да / Нет / Подумаю / Не знаю)")
-        state["step"] = 3
-    elif step == 3:
-        state["answers"]["Будет участвовать"] = msg.text
-        bot.send_message(msg.chat.id, "🌍 С какого региона вы будете играть? (материк, страна)")
-        state["step"] = 4
-    elif step == 4:
-        state["answers"]["Место"] = msg.text
-        users[str(msg.from_user.id)] = {
-            "username": msg.from_user.username or "-",
-            "answers": state["answers"]
-        }
-        save_json(USERS_FILE, users)
-        bot.send_message(msg.chat.id, "🎉 Спасибо! Вы зарегистрированы!" + FOOTER)
-        user_states.pop(msg.chat.id)
+step = state.get("step")
+if step == 1:
+    if len(msg.text) > 25:
+        return bot.send_message(msg.chat.id, "❌ Ник не должен превышать 25 символов")
+    state["answers"]["Игровой ник"] = msg.text
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup.add("Да, хочу зарегистрироваться", "Нет", "Подумаю")
+    bot.send_message(msg.chat.id, "📝 Вы хотите зарегистрироваться на конкурс?", reply_markup=markup)
+    state["step"] = 2
+elif step == 2:
+    state["answers"]["Регистрация"] = msg.text
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup.add("Буду участвовать", "Не буду", "Подумаю", "Смотря во сколько")
+    bot.send_message(msg.chat.id, "❓ Вы будете участвовать в конкурсе?", reply_markup=markup)
+    state["step"] = 3
+elif step == 3:
+    state["answers"]["Будет участвовать"] = msg.text
+    bot.send_message(msg.chat.id, "🌍 С какого региона вы будете участвовать? (Напишите страну)", reply_markup=types.ReplyKeyboardRemove())
+    state["step"] = 4
+elif step == 4:
+    state["answers"]["Регион"] = msg.text
+    users[str(msg.from_user.id)] = {
+        "username": msg.from_user.username or "-",
+        "answers": state["answers"]
+    }
+    save_json(USERS_FILE, users)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("✅ Подтвердить", "❌ Отмена", "✏️ Изменить анкету")
+    bot.send_message(msg.chat.id, "🚀 Ваша анкета сохранена. Что дальше?", reply_markup=markup)
+    user_states.pop(msg.chat.id)
 
-@app.route("/", methods=["GET"])
-def index():
-    return "Bot is running"
+Flask webhook
 
-@app.route("/", methods=["POST"])
-def webhook():
-    update = telebot.types.Update.de_json(request.data.decode("utf-8"))
-    bot.process_new_updates([update])
-    return "ok", 200
+@app.route("/", methods=["GET"]) def index(): return "Bot is running"
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+@app.route("/", methods=["POST"]) def webhook(): update = telebot.types.Update.de_json(request.data.decode("utf-8")) bot.process_new_updates([update]) return "ok", 200
+
+if name == "main": port = int(os.environ.get("PORT", 8080)) app.run(host="0.0.0.0", port=port)
